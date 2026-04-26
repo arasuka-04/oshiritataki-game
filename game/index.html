@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>おしりたたきゲーム</title>
+  <style>
+    @font-face {
+      font-family: 'EchionFont';
+      src: url('./Echion_Regular.otf') format('opentype');
+    }
+
+    .effect {
+      font-family: 'EchionFont', sans-serif;
+      position: absolute;
+    }
+
+    :root {
+      --bg-sky: #d8f0ff;
+      --bg-grass: #b8e6a3;
+      --panel: rgba(255, 255, 255, 0.9);
+      --text: #1b2a31;
+      --accent: #e14d2a;
+      --ok: #1d9b5f;
+      --miss: #b70000;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      color: var(--text);
+    }
+
+    body {
+      background: linear-gradient(180deg, var(--bg-sky) 0%, #e9f9ff 40%, var(--bg-grass) 100%);
+    }
+
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .hud {
+      position: absolute;
+      top: max(10px, env(safe-area-inset-top));
+      left: 10px;
+      right: 10px;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 700;
+      font-size: clamp(16px, 4.6vw, 22px);
+    }
+
+    .chip {
+      background: var(--panel);
+      border: 2px solid rgba(0, 0, 0, 0.08);
+      border-radius: 999px;
+      padding: 8px 14px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      white-space: nowrap;
+    }
+
+    #field {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+    }
+
+    .fly {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      transform: translate(-50%, -50%);
+      display: block;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      outline: none;
+      filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.25));
+      transition: transform 0.08s ease-out, filter 0.08s ease-out;
+      will-change: left, top, transform;
+    }
+
+    .fly.hit {
+      transform: translate(-50%, -50%) scale(0.9);
+      filter:
+        drop-shadow(0 0 8px rgba(255, 50, 50, 0.9)) saturate(5) hue-rotate(-20deg);
+    }
+
+
+    .fly-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .effect {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-weight: 900;
+      font-size: clamp(22px, 7vw, 42px);
+      animation: pop 0.5s ease-out forwards;
+    }
+
+    .effect.hit {
+      font-family: 'EchionFont', sans-serif;
+      color: #da87bb;
+
+      font-size: clamp(22px, 7vw, 42px);
+      display: inline-block;
+      transform: translate(-50%, -50%) scaleX(0.65);
+      letter-spacing: -0.2em;
+    }
+
+    .effect.miss {
+      font-family: 'EchionFont', sans-serif;
+      color: #000;
+
+      font-size: clamp(22px, 7vw, 42px);
+      font-size: clamp(16px, 6vw, 32px);
+    }
+
+    @keyframes pop {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+
+      15% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-24px) scale(1);
+      }
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .card {
+      width: min(92vw, 380px);
+      background: #fff;
+      border-radius: 18px;
+      padding: 22px 18px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .card h1 {
+      margin: 4px 0 8px;
+      font-size: clamp(24px, 7vw, 34px);
+    }
+
+    .card p {
+      margin: 0 0 16px;
+      font-size: clamp(14px, 4vw, 18px);
+      line-height: 1.5;
+    }
+
+    .card button {
+      appearance: none;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: clamp(16px, 4.5vw, 20px);
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(180deg, #3ab86f, var(--ok));
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    .card button:active {
+      transform: translateY(1px);
+    }
+
+    .hide {
+      display: none;
+    }
+
+    .title-logo {
+      width: 200px;
+      width: 60%;
+      height: auto;
+    }
+
+    /* タイトル画面 */
+    .title-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+
+    .title-screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+
+    .title-screen.title2-screen {
+      background: transparent;
+    }
+
+    .title2-screen .title2-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .title2-screen .title2-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .title2-screen .settei-btn {
+      position: absolute;
+      top: max(20px, env(safe-area-inset-top));
+      left: 20px;
+      width: clamp(60px, 15vw, 100px);
+      height: auto;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    .title2-screen .start-btn {
+      position: absolute;
+      bottom: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: clamp(120px, 40vw, 200px);
+      height: auto;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* 設定画面 */
+    .settings-modal {
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .settings-modal .settings-card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 24px;
+      width: min(85vw, 320px);
+      text-align: center;
+    }
+
+    .settings-modal h2 {
+      margin: 0 0 20px;
+      font-size: clamp(20px, 5vw, 26px);
+    }
+
+    .settings-modal .volume-control {
+      margin: 16px 0;
+      text-align: left;
+    }
+
+    .settings-modal .volume-control label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: clamp(14px, 4vw, 16px);
+    }
+
+    .settings-modal .volume-control input[type="range"] {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      appearance: none;
+      background: #ddd;
+      cursor: pointer;
+    }
+
+    .settings-modal .volume-control input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #3ab86f;
+      cursor: pointer;
+    }
+
+    .settings-modal .close-btn {
+      margin-top: 20px;
+      padding: 10px 24px;
+      font-size: clamp(14px, 4vw, 16px);
+      font-weight: 600;
+      color: #fff;
+      background: #666;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .hide {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <main id="game" aria-label="おしりたたきゲーム">
+    <!-- title3画面 -->
+    <div id="title3" class="title-screen">
+      <img src="./title3.png" alt="タイトル3" id="title3Img">
+    </div>
+
+    <!-- title2画面 -->
+    <div id="title2" class="title-screen title2-screen hide">
+      <div class="title2-container">
+        <img src="./title2.png" alt="タイトル2" class="title2-bg">
+        <img src="./settei.png" alt="設定" class="settei-btn" id="setteiBtn">
+        <img src="./start.png" alt="スタート" class="start-btn" id="titleStartBtn">
+      </div>
+    </div>
+
+    <!-- 設定画面 -->
+    <div id="settings" class="settings-modal hide">
+      <div class="settings-card">
+        <h2>音量設定</h2>
+        <div class="volume-control">
+          <label>BGM: <span id="bgmValue">50</span>%</label>
+          <input type="range" id="bgmSlider" min="0" max="100" value="50">
+        </div>
+        <div class="volume-control">
+          <label>効果音: <span id="seValue">50</span>%</label>
+          <input type="range" id="seSlider" min="0" max="100" value="50">
+        </div>
+        <button class="close-btn" id="closeSettings">閉じる</button>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="chip">SCORE: <span id="score">0</span></div>
+      <div class="chip">TIME: <span id="time">30</span>s</div>
+    </div>
+    <section id="field" aria-live="polite"></section>
+    <section id="overlay" class="overlay">
+      <div class="card">
+        <img src="./title.png" alt="おしりたたき" class="title-logo">
+        <h1>おしりたたき</h1>
+        <p>30秒でいくつたたける？<br>画面内を飛ぶおしりをタップ！</p>
+        <button id="startBtn" type="button">スタート</button>
+      </div>
+    </section>
+  </main>
+
+  <audio id="bgm" src="./BGM.mp3" loop></audio>
+  <audio id="se1" src="./se1.wav"></audio>
+  <audio id="se2" src="./se2.m4a"></audio>
+  <audio id="se3" src="./se3.m4a"></audio>
+  <audio id="se4" src="./se4.m4a"></audio>
+
+  <script>
+    const game = document.getElementById("game");
+    const field = document.getElementById("field");
+    const scoreEl = document.getElementById("score");
+    const timeEl = document.getElementById("time");
+    const overlay = document.getElementById("overlay");
+    const startBtn = document.getElementById("startBtn");
+    const bgm = document.getElementById("bgm");
+    const se1 = document.getElementById("se1");
+    const se2 = document.getElementById("se2");
+    const se3 = document.getElementById("se3");
+    const se4 = document.getElementById("se4");
+
+    // 音量設定（デフォルトは0.5）
+    let bgmVolume = 0.5;
+    let seVolume = 0.5;
+
+    // 音量適用関数
+    function applyVolumes() {
+      bgm.volume = bgmVolume;
+      se1.volume = seVolume;
+      se2.volume = seVolume;
+      se3.volume = seVolume;
+      se4.volume = seVolume;
+    }
+
+    // 初期音量適用
+    applyVolumes();
+
+    // タイトル画面要素
+    const title3 = document.getElementById("title3");
+    const title3Img = document.getElementById("title3Img");
+    const title2 = document.getElementById("title2");
+    const setteiBtn = document.getElementById("setteiBtn");
+    const titleStartBtn = document.getElementById("titleStartBtn");
+    const settings = document.getElementById("settings");
+    const bgmSlider = document.getElementById("bgmSlider");
+    const seSlider = document.getElementById("seSlider");
+    const bgmValue = document.getElementById("bgmValue");
+    const seValue = document.getElementById("seValue");
+    const closeSettings = document.getElementById("closeSettings");
+
+    // 設定ボタン
+    setteiBtn.addEventListener("click", () => {
+      title2.classList.add("hide");
+      settings.classList.remove("hide");
+    });
+
+    // 設定画面閉じる
+    closeSettings.addEventListener("click", () => {
+      settings.classList.add("hide");
+      title2.classList.remove("hide");
+    });
+
+    // BGM音量調整
+    bgmSlider.addEventListener("input", (e) => {
+      bgmVolume = e.target.value / 100;
+      bgmValue.textContent = e.target.value;
+      applyVolumes();
+    });
+
+    // 効果音音量調整
+    seSlider.addEventListener("input", (e) => {
+      seVolume = e.target.value / 100;
+      seValue.textContent = e.target.value;
+      applyVolumes();
+    });
+
+    // タイトル画面遷移
+    title3Img.addEventListener("click", () => {
+      // BGMを再生
+      bgm.currentTime = 0;
+      bgm.play().catch(e => console.log("BGM再生に失敗:", e));
+
+      title3.classList.add("hide");
+      title2.classList.remove("hide");
+    });
+
+    // タイトル画面からゲームへ
+    titleStartBtn.addEventListener("click", () => {
+      title2.classList.add("hide");
+      startGame();
+    });
+
+    // 設定ボタン（現在は何もしない）
+
+    // キーボード操作
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        // title2画面表示中にEnterでゲームスタート
+        if (!title2.classList.contains("hide") && running === false) {
+          title2.classList.add("hide");
+          startGame();
+        }
+      } else if (e.key === "Escape") {
+        // ゲーム中にEscでtitle2に戻る
+        if (running === true) {
+          endGame();
+          title2.classList.remove("hide");
+        }
+      }
+    });
+
+
+    const GAME_TIME = 30;
+    const FLY_SIZE = 60;
+    const FLY_MIN = 5;
+    const FLY_MAX = 10;
+    const MIN_SPEED = 130;
+    const MAX_SPEED = 260;
+
+    let score = 0;
+    let timeLeft = GAME_TIME;
+    let running = false;
+    let flies = [];
+    let animId = 0;
+    let prevTs = 0;
+    let countdownTimer = 0;
+
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function fieldRect() {
+      return field.getBoundingClientRect();
+    }
+
+    function createFlyData() {
+      const r = fieldRect();
+      const margin = FLY_SIZE * 0.55;
+      const x = random(margin, Math.max(margin, r.width - margin));
+      const y = random(margin + 64, Math.max(margin + 64, r.height - margin));
+      const speed = random(MIN_SPEED, MAX_SPEED);
+      const angle = random(0, Math.PI * 2);
+
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "fly";
+      el.setAttribute("aria-label", "おしり");
+
+      const img = document.createElement("img");
+      img.className = "fly-img";
+
+      const imageSources = [
+        "./sozai1.png",
+        "./sozai2.png",
+        "./sozai3.png"
+      ];
+
+      // リストの中からランダムに1つ選ぶ（0〜2の整数を作る）
+      const randomIndex = Math.floor(Math.random() * imageSources.length);
+      const selectedSrc = imageSources[randomIndex];
+
+      img.src = selectedSrc;
+
+      el.dataset.type = String(randomIndex);
+
+      // 選ばれた画像をsrcにセットする
+      img.src = imageSources[randomIndex];
+
+      img.alt = "";
+      img.draggable = false;
+      el.appendChild(img);
+
+      const flyData = {
+        id: Math.random().toString(36).slice(2),
+        el,
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed
+      };
+      el.dataset.flyId = flyData.id;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.addEventListener("pointerdown", hitFly, { passive: false });
+      field.appendChild(el);
+      return flyData;
+    }
+
+    function spawnFlies() {
+      clearFlies();
+      const count = Math.floor(random(FLY_MIN, FLY_MAX + 1));
+      for (let i = 0; i < count; i += 1) {
+        flies.push(createFlyData());
+      }
+    }
+
+    function updateFlies(deltaSec, nowMs) {
+      if (!running || flies.length === 0) return;
+      const r = fieldRect();
+      const margin = FLY_SIZE * 0.55;
+      const minX = margin;
+      const maxX = Math.max(margin, r.width - margin);
+      const minY = margin + 64;
+      const maxY = Math.max(minY, r.height - margin);
+
+      for (const fly of flies) {
+        fly.x += fly.vx * deltaSec;
+        fly.y += fly.vy * deltaSec;
+
+        if (fly.x <= minX) {
+          fly.x = minX;
+          fly.vx = Math.abs(fly.vx);
+        } else if (fly.x >= maxX) {
+          fly.x = maxX;
+          fly.vx = -Math.abs(fly.vx);
+        }
+
+        if (fly.y <= minY) {
+          fly.y = minY;
+          fly.vy = Math.abs(fly.vy);
+        } else if (fly.y >= maxY) {
+          fly.y = maxY;
+          fly.vy = -Math.abs(fly.vy);
+        }
+
+        if (Math.random() < 0.015) {
+          const rotate = random(-0.6, 0.6);
+          const cos = Math.cos(rotate);
+          const sin = Math.sin(rotate);
+          const nvx = fly.vx * cos - fly.vy * sin;
+          const nvy = fly.vx * sin + fly.vy * cos;
+          fly.vx = nvx;
+          fly.vy = nvy;
+        }
+
+        fly.el.style.left = `${fly.x}px`;
+        fly.el.style.top = `${fly.y}px`;
+      }
+    }
+
+    function animationLoop(ts) {
+      if (!running) return;
+      if (!prevTs) prevTs = ts;
+      const deltaSec = Math.min((ts - prevTs) / 1000, 0.04);
+      prevTs = ts;
+      updateFlies(deltaSec, ts);
+      animId = window.requestAnimationFrame(animationLoop);
+    }
+
+    function showEffect(text, x, y, type) {
+      const el = document.createElement("div");
+      el.className = "effect " + type;
+      el.textContent = text;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      field.appendChild(el);
+      window.setTimeout(() => el.remove(), 520);
+    }
+
+
+    function hitFly(e) {
+      e.preventDefault();
+      if (!running) return;
+
+      score += 1;
+      scoreEl.textContent = String(score);
+
+      // ★ どの素材か取得
+      const type = e.currentTarget.dataset.type;
+
+      // ★ SE分岐
+      if (type === "0") {
+        se2.currentTime = 0;
+        se2.play().catch(() => { });
+      } else if (type === "1") {
+        se3.currentTime = 0;
+        se3.play().catch(() => { });
+      } else if (type === "2") {
+        se4.currentTime = 0;
+        se4.play().catch(() => { });
+      }
+
+      const rect = fieldRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      showEffect("ペチッ", x, y, "hit");
+
+      if (navigator.vibrate) navigator.vibrate(20);
+
+      const target = e.currentTarget;
+      const hitId = target.dataset.flyId;
+      const index = flies.findIndex((f) => f.id === hitId);
+
+      if (index >= 0) {
+        const hitFlyData = flies[index];
+        hitFlyData.el.classList.add("hit");
+        setTimeout(() => {
+          hitFlyData.el.remove();
+        }, 80);
+        flies.splice(index, 1);
+      }
+
+      flies.push(createFlyData());
+    }
+
+    function clearFlies() {
+      for (const fly of flies) {
+        fly.el.remove();
+      }
+      flies = [];
+    }
+
+    function startGame() {
+      bgm.play().catch(e => console.log("BGM再生に失敗:", e));
+
+      score = 0;
+      timeLeft = GAME_TIME;
+      running = true;
+      scoreEl.textContent = "0";
+      timeEl.textContent = String(timeLeft);
+      overlay.classList.add("hide");
+
+      spawnFlies();
+      prevTs = 0;
+      window.cancelAnimationFrame(animId);
+      animId = window.requestAnimationFrame(animationLoop);
+
+      clearInterval(countdownTimer);
+      countdownTimer = window.setInterval(() => {
+        timeLeft -= 1;
+        timeEl.textContent = String(Math.max(0, timeLeft));
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+
+    function endGame() {
+      running = false;
+      if (bgm) {
+        bgm.pause();
+      }
+
+      window.cancelAnimationFrame(animId);
+      clearInterval(countdownTimer);
+      clearFlies();
+
+      overlay.classList.remove("hide");
+      overlay.querySelector(".card").innerHTML = `
+        <h1>ゲーム終了！</h1>
+        <p>叩いたおしり: <strong>${score}</strong> つ</p>
+        <button id="restartBtn" type="button">もう一度遊ぶ</button>
+      `;
+      document.getElementById("restartBtn").addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        startGame();
+      }, { passive: false });
+    }
+
+    startBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      startGame();
+    }, { passive: false });
+
+    field.addEventListener("pointerdown", (e) => {
+      if (!running) return;
+
+      // ★ ここ追加
+      se1.currentTime = 0;
+      se1.play().catch(() => { });
+
+      if (e.target !== field) return;
+
+      e.preventDefault();
+      const rect = fieldRect();
+      showEffect("MISS", e.clientX - rect.left, e.clientY - rect.top, "miss");
+    }, { passive: false });  </script>
+</body>
+
+</html>
